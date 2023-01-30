@@ -1,0 +1,7 @@
+NotifyOnWeatherWarning.NotifyOnWeatherWarningConfig:
+  NotifyTitlePrefix: ⛅
+  NotifyId: weather_warning
+  PersistentNotification: true
+  WeatherWarningEntity: sensor.dwd_weather_warnings_current_warning_level
+  MobileNotifyServices:
+    - notify.mobile_app_myphone
