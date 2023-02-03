@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Reactive.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -21,8 +19,9 @@ public class NotifyOnWeatherWarningConfig
 {
   public string? NotifyTitlePrefix { get; set; }
   public string? NotifyId { get; set; }
-  public bool? PersistentNotification { get; set; }
   public string? WeatherWarningEntity { get; set; }
+  public IEnumerable<string>? WeatherWarningFilter { get; set; }
+  public bool? PersistentNotification { get; set; }
   public IEnumerable<string>? MobileNotifyServices { get; set; }
 }
 
@@ -37,8 +36,9 @@ public class NotifyOnWeatherWarningApp : IAsyncInitializable
   private readonly ILogger<NotifyOnWeatherWarningApp> mLogger;
   private string mNotifyTitlePrefix;
   private string mNotifyId;
-  private bool mPersistentNotification;
   private string mWeatherWarningEntity;
+  private IEnumerable<string> mWeatherWarningFilter;
+  private bool mPersistentNotification;
   private IEnumerable<string> mMobileNotifyServices;
 
 
@@ -57,9 +57,9 @@ public class NotifyOnWeatherWarningApp : IAsyncInitializable
   }
 
   public NotifyOnWeatherWarningApp(IHaContext ha,
-                            IHomeAssistantConnection haConnection,
-                            IAppConfig<NotifyOnWeatherWarningConfig> config,
-                            ILogger<NotifyOnWeatherWarningApp> logger)
+                                  IHomeAssistantConnection haConnection,
+                                  IAppConfig<NotifyOnWeatherWarningConfig> config,
+                                  ILogger<NotifyOnWeatherWarningApp> logger)
   {
     mHaContext = ha;
     mHaConnection = haConnection;
@@ -70,8 +70,9 @@ public class NotifyOnWeatherWarningApp : IAsyncInitializable
     // Check options against null and set a default value if true
     mNotifyTitlePrefix = config.Value.NotifyTitlePrefix ?? "";
     mNotifyId = config.Value.NotifyId ?? "weather_warning";
-    mPersistentNotification = config.Value.PersistentNotification ?? true;
     mWeatherWarningEntity = config.Value.WeatherWarningEntity ?? "";
+    mWeatherWarningFilter = config.Value.WeatherWarningFilter ?? new List<string>();
+    mPersistentNotification = config.Value.PersistentNotification ?? true;
     mMobileNotifyServices = config.Value.MobileNotifyServices ?? new List<string>();
 
     // Check options against empty/invalid values and set a default value if true
@@ -164,17 +165,20 @@ public class NotifyOnWeatherWarningApp : IAsyncInitializable
       // Assume there may be max. 5 weather warnings at the same time
       for (int i = 1; i <= 5; i++)
       {
+        notifyTitle = "";
+        notifyMessage = "";
+        notifyId =  $"{mNotifyId}_{i}";
+
         if (i <= state)
         {
-          notifyTitle = mNotifyTitlePrefix + attributes[$"warning_{i}_headline"].ToString();
-          notifyMessage = attributes[$"warning_{i}_description"].ToString() ?? "";
+          // Set notificiation if no filter are set or if filter matches the attribute 'warning_x_name'
+          var name = attributes[$"warning_{i}_name"].ToString();
+          if (!mWeatherWarningFilter.Any() || mWeatherWarningFilter.Contains(name))
+          {
+            notifyTitle = mNotifyTitlePrefix + attributes[$"warning_{i}_headline"].ToString();
+            notifyMessage = attributes[$"warning_{i}_description"].ToString() ?? "";
+          }
         }
-        else
-        {
-          notifyTitle = "";
-          notifyMessage = "";
-        }
-        notifyId =  $"{mNotifyId}_{i}";
 
         if (mPersistentNotification) SetPersistenNotification(notifyTitle, notifyMessage, notifyId);
         if (mMobileNotifyServices.Any()) SetMobileNotification(mMobileNotifyServices, notifyTitle, notifyMessage, notifyId);
@@ -184,68 +188,21 @@ public class NotifyOnWeatherWarningApp : IAsyncInitializable
 
   private void SetPersistenNotification(string title, string message, string id)
   {
-    if (!String.IsNullOrEmpty(message))
-    {
-      mHaContext.CallService("persistent_notification", "create", data: new
-        {
-          title = title,
-          message = message,
-          notification_id = id
-        });
-    }
-    else
-    {
-      mHaContext.CallService("persistent_notification", "dismiss", data: new
-        {
-          notification_id = id
-        });
-    }
+    object? notifyData = !String.IsNullOrEmpty(message)
+      ? new { title = title, message = message, notification_id = id }
+      : new { notification_id = id };
+    var service = !String.IsNullOrEmpty(message) ? "create" : "dismiss";
+    mHaContext.CallService("persistent_notification", service, data: notifyData);
   }
 
   private void SetMobileNotification(IEnumerable<string> services, string title, string message, string tag)
   {
     foreach (var service in services)
     {
-      if (!String.IsNullOrEmpty(message))
-      {
-        mHaContext.CallService("notify", service, data: new
-          {
-            title = title,
-            message = message,
-            data = new
-              {
-                tag = tag,
-                url = "/config/dashboard",          // iOS URL
-                clickAction = "/config/dashboard",  // Android URL
-                actions = new List<object>
-                {
-                  new
-                    {
-                      action = "URI",
-                      title = "Open Addons",
-                      uri = "/hassio/dashboard"
-                    },
-                  new
-                    {
-                      action = "URI",
-                      title = "Open HACS",
-                      uri = "/hacs"
-                    },
-                }
-              }
-          });
-      }
-      else
-      {
-        mHaContext.CallService("notify", service, data: new
-          {
-            message = "clear_notification",
-            data = new
-              {
-                tag = tag
-              }
-          });
-      }
+      object? notifyData = !String.IsNullOrEmpty(message)
+        ? new { title = title, message = message, data = new { tag = tag, }}
+        : new { message = "clear_notification", data = new { tag = tag } };
+      mHaContext.CallService("notify", service, data: notifyData);
     }
   }
 }

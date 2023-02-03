@@ -21,11 +21,16 @@ Example configuration:
 NotifyOnWeatherWarning.NotifyOnWeatherWarningConfig:
   NotifyTitlePrefix: ⛅
   NotifyId: weather_warning
-  PersistentNotification: true
   WeatherWarningEntity: sensor.dwd_weather_warnings_current_warning_level
+  WeatherWarningFilter:
+    - *FROST*
+    - *HAGEL*
+  PersistentNotification: true
   MobileNotifyServices:
     - notify.mobile_app_myphone
 ```
+
+https://www.dwd.de/DE/leistungen/opendata/help/warnungen/warning_codes_pdf.pdf?__blob=publicationFile&v=5
 
 ## Options:
 
@@ -43,10 +48,11 @@ Since there can be multipe weather warning at the same time an index is added to
 *Example ID:* &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `weather_warning_1`  
 *Default value:* &nbsp;&nbsp;&nbsp; `weather_warning`  
 
-### Option: `PersistentNotification`
+### Option: `WeatherWarningFilter`
 
-The persistent notification can be disabled if only mobile notifications are preferred.  
-*Default value:* &nbsp;&nbsp;&nbsp; `true`  
+Defines a filter of `warning_x_name`'s where a notification shall be showed.  
+It is also possible to set wildecards like `*` (for any multipe characters) and `?` (for any single character).  
+For DWD Weather Warnings you can find all possible `warning_x_name`'s [here](https://www.dwd.de/DE/leistungen/opendata/help/warnungen/warning_codes_pdf.pdf?__blob=publicationFile&v=5).  
 
 ### Option: `WeatherWarningEntity`
 
@@ -57,6 +63,11 @@ A possible sensor could be e.g. `sensor.dwd_weather_warnings_current_warning_lev
 
 __NOTE:__ &nbsp; At the moment this app is only tested with the [DWD Weather Warning](https://www.home-assistant.io/integrations/dwd_weather_warnings/) integration.  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; If you want more integrations supported please create an [issue](https://github.com/ElVit/netdaemon-notify-on-weather-warning/issues).  
+
+### Option: `PersistentNotification`
+
+The persistent notification can be disabled if only mobile notifications are preferred.  
+*Default value:* &nbsp;&nbsp;&nbsp; `true`  
 
 ### Option: `MobileNotifyServices`
 

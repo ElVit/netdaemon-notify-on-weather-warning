@@ -1,7 +1,10 @@
 NotifyOnWeatherWarning.NotifyOnWeatherWarningConfig:
   NotifyTitlePrefix: ⛅
   NotifyId: weather_warning
-  PersistentNotification: true
   WeatherWarningEntity: sensor.dwd_weather_warnings_current_warning_level
+  WeatherWarningFilter:
+    - "*FROST*"
+    - "*HAGEL*"
+  PersistentNotification: true
   MobileNotifyServices:
     - notify.mobile_app_myphone
